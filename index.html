@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Detector de Mentira o Verdad</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; padding: 30px; }
+    #resultado { font-size: 2rem; margin-top: 20px; font-weight: bold; }
+    img { max-width: 256px; margin-top: 20px; border: 2px solid #ccc; }
+  </style>
+</head>
+<body>
+
+  <h1>Detector de Mentira o Verdad</h1>
+
+  <input type="file" id="imageInput" accept="image/*"><br>
+  <img id="preview" src="#" alt="Imagen" style="display:none"><br>
+  <div id="resultado"></div>
+
+  <script>
+    let model;
+
+    async function loadModel() {
+      model = await tf.loadGraphModel('model.json');
+      console.log("Modelo cargado");
+    }
+
+    function preprocessImage(img) {
+      const tensor = tf.browser.fromPixels(img)
+        .resizeNearestNeighbor([64, 64]) // Asegúrate que coincide con tu modelo
+        .toFloat()
+        .div(tf.scalar(255.0))           // Normaliza
+        .expandDims();                   // Añade dimensión batch
+      return tensor;
+    }
+
+    document.getElementById('imageInput').addEventListener('change', async (event) => {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const img = document.getElementById('preview');
+        img.src = e.target.result;
+        img.style.display = 'block';
+
+        img.onload = async () => {
+          const inputTensor = preprocessImage(img);
+const prediction = await model.predict(inputTensor).data();
+
+// Diccionario de clases
+const classDict = {0: 'Lie', 1: 'Truth'};
+
+// Elegir clase con mayor probabilidad
+const maxIndex = prediction.indexOf(Math.max(...prediction));
+const result = classDict[maxIndex];
+
+// Mostrar resultados
+document.getElementById('resultado').innerText =
+  `Predicción: ${result}
+Lie: ${(prediction[0] * 100).toFixed(2)}%
+Truth: ${(prediction[1] * 100).toFixed(2)}%`;
+        };
+      };
+      reader.readAsDataURL(file);
+    });
+
+    loadModel();
+  </script>
+
+</body>
+</html>
